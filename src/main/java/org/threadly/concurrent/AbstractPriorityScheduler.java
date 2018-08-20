@@ -416,16 +416,19 @@ public abstract class AbstractPriorityScheduler extends AbstractSubmitterSchedul
       @Override
       public boolean add(TaskWrapper task) {
         TaskWrapper sortedQueueHead = sortedQueue.peek();
-        boolean mayBeQueueUpdate;
-        if (sortedQueueHead == null) {
-          TaskWrapper tempQueueHead = tempAddQueue.peek(); // not sorted, but not worth checking full queue either
-          mayBeQueueUpdate = tempQueueHead == null || tempQueueHead.getRunTime() > task.getRunTime();
-        } else {
-          mayBeQueueUpdate = sortedQueueHead.getRunTime() > task.getRunTime();
+        if (sortedQueueHead == null || sortedQueueHead.getRunTime() > task.getRunTime()) {
+          synchronized (sortedQueue.getModificationLock()) {
+            sortedQueueHead = sortedQueue.peek();
+            if (sortedQueueHead == null || sortedQueueHead.getRunTime() > task.getRunTime()) {
+              sortedQueue.add(0, task);
+              return true;
+            }
+          }
         }
+        
         tempAddQueue.add(task);
         
-        return mayBeQueueUpdate;
+        return false;
       }
       
       protected void syncQueue() {
